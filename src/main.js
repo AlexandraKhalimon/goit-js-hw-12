@@ -10,6 +10,8 @@ const loadMoreBtn = document.querySelector(".load-button");
 
 let query = "";
 let page = 1;
+const perPage = 15;
+
 
 searchForm.addEventListener("submit", handleSubmit);
 
@@ -18,12 +20,21 @@ async function handleSubmit(event) {
 
     query = searchInput.value.trim();
 
+    if (!query) {
+        iziToast.warning({
+            message: "Sorry, fill in the search query to start work",
+            position: "topRight"
+        });
+        return;
+    }
+
     showLoader();
     clearGallery();
     hideLoadMoreButton();
 
     try {
         page = 1;
+        
         const data = await getImagesByQuery(query, page);
 
         if (data.hits.length === 0) {
@@ -35,8 +46,14 @@ async function handleSubmit(event) {
         };
 
         createGallery(data.hits);
-        showLoadMoreButton();
+
         
+        if (page * perPage < data.totalHits) {
+            showLoadMoreButton();
+        } else {
+            hideLoadMoreButton();
+        };
+
     } catch(error) {
         console.log(error.message);
         iziToast.show({
@@ -54,9 +71,20 @@ loadMoreBtn.addEventListener("click", loadMoreCards);
 async function loadMoreCards() {
     showLoader();
     page += 1;
-    const data = await getImagesByQuery(query, page);
 
     try {
+        const data = await getImagesByQuery(query, page);
+
+        if (!data.hits || data.hits.length === 0) {
+            iziToast.show({
+                message: "Sorry, there are no images matching your search query. Please try again!",
+                color: "red",
+                position: "topRight"
+            })
+            hideLoadMoreButton();
+            return;
+        }
+        
         const loadedCards = page * 15;
         if (loadedCards >= data.totalHits) {
             hideLoadMoreButton();
@@ -69,8 +97,9 @@ async function loadMoreCards() {
 
         addGallery(data.hits);
 
-        const card = document.querySelector(".card");
-        const cardHeight = card.getBoundingClientRect().height;
+        const gallery = document.querySelector(".gallery");
+        const cardHeight = gallery.firstElementChild.getBoundingClientRect().height;
+        
         window.scrollBy({
             top: cardHeight*2,
             left: 0,
